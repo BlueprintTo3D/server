@@ -1,0 +1,77 @@
+:root {
+    --bgColor: #3a3a3a;
+    --hoverBg: #616161;
+    --text: #bbb;
+}
+
+.label {
+    display: inline-block;
+    width: 100%; /* div.inner의 너비에 맞추려면 이 값을 조절하세요 */
+    text-align: center; /* 내부 요소를 가운데 정렬 */
+    margin: auto; /* 블록 레벨 요소처럼 동작하도록 */
+}
+
+.inner {
+    width: clamp(0px, 100%, 512px);
+    margin: 32px auto;
+    margin-top: 150px;
+    text-align: center;
+    cursor: pointer;
+    height: 128px;
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 128px;
+    border: thick dotted var(--bgColor);
+    color: black;
+}
+
+@media (any-hover: hover){
+    .inner:hover{
+        background-color: var(--hoverBg);
+    }
+}
+
+.label--hover{
+    background-color: var(--hoverBg);
+}
+
+.preview-title{
+    font-size: 32px;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.preview {
+    width: clamp(0px, 100%, 512px);
+    margin: 32px auto;
+    text-align: center;
+    display: grid;
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    align-items: center;
+    justify-items: center;
+    background-color: var(--bgColor);
+}
+
+.embed-img{
+    width: 100%;
+    height: 128px;
+    object-position: center;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.btn1, .btn1:hover, .btn1:active, .btn1:focus {
+    cursor: pointer;
+    border: none;
+    text-transform: uppercase;
+    display: inline-block;
+    padding: 10px 35px;
+    background-color: #3a3a3a;
+    color: #ffffff;
+    border-radius: 8px;
+    -webkit-transition: all 1s;
+    transition: all 1s;
+    margin-left: 55.7%;
+}
