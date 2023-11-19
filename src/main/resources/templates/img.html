@@ -35,19 +35,20 @@
 
     var input = document.getElementById("input");
     var initLabel = document.getElementById("label");
+    var innerDiv = document.getElementById("inner");
 
     input.addEventListener("change", (event) => {
         const files = changeEvent(event);
         handleUpdate(files);
     });
 
-    initLabel.addEventListener("mouseover", (event) => {
+    innerDiv.addEventListener("mouseover", (event) => {
         event.preventDefault();
         const label = document.getElementById("label");
         label?.classList.add("label--hover");
     });
 
-    initLabel.addEventListener("mouseout", (event) => {
+    innerDiv.addEventListener("mouseout", (event) => {
         event.preventDefault();
         const label = document.getElementById("label");
         label?.classList.remove("label--hover");
