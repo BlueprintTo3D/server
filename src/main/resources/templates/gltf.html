@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="fragments/header.html :: head"/>
+
+<style>
+    html, body { overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; }
+    #renderCanvas { width: 80%; height: 80%; touch-action: none; margin: auto; position: absolute; top: 0; left: 0; bottom: 0; right: 0; }
+</style>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+<body>
+<div th:replace="fragments/header.html :: header"/>
+<input type="file" id="file" style="display: none;">
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    document.getElementById("file").onchange = function(event) {
+        var reader = new FileReader();
+        reader.onload = function() {
+            var engine = new BABYLON.Engine(document.getElementById('renderCanvas'), true);
+            var createScene = function() {
+                var scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color3(0, 0, 1);
+
+                var arcCamera = new BABYLON.ArcRotateCamera("ArcCamera", Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), scene);
+                arcCamera.attachControl(document.getElementById('renderCanvas'), true);
+
+                var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(1, 1, 0), scene);
+                var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2}, scene);
+                var texture = new BABYLON.Texture(reader.result, scene);
+                var material = new BABYLON.StandardMaterial("mat", scene);
+                material.diffuseTexture = texture;
+                sphere.material = material;
+
+                var freeCamera = new BABYLON.FreeCamera("FreeCamera", BABYLON.Vector3.Zero(), scene);
+                freeCamera.attachControl(document.getElementById('renderCanvas'), true);
+
+                document.getElementById("firstPersonView").addEventListener("click", function() {
+                    freeCamera.position = new BABYLON.Vector3(0, 0, 0);
+                    freeCamera.rotation = new BABYLON.Vector3(0, 0, 0);
+                });
+
+                return scene;
+            };
+            var scene = createScene();
+            engine.runRenderLoop(function() {
+                scene.render();
+            });
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    };
+</script>
+
+<script src="/babylon/main.js"></script>
+</body>
+</html>
