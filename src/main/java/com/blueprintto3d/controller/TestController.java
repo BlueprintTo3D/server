@@ -15,4 +15,9 @@ public class TestController {
     public String gltfPage() {
         return "gltf";
     }
+
+    @GetMapping("/")
+    public String homePage() {
+        return "home";
+    }
 }
