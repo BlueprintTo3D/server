@@ -51,6 +51,9 @@ dependencies {
     // redis로 인증 번호 유효 시간 저장
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    // email 인증
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
     // validation
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter-validation', version: '2.5.6'
 }
