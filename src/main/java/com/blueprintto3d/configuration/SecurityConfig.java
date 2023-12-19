@@ -24,6 +24,7 @@ public class SecurityConfig {
                 .csrf().disable()
                 .cors().and()
                 .authorizeRequests()
+                .antMatchers("/users/join", "/users/login").permitAll()
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

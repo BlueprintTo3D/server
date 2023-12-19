@@ -24,5 +24,13 @@ public class User {
     private String providerId;
 
     @Enumerated(EnumType.STRING)
-    private UserRole userRole;
+    private UserRole role;
+
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
+    }
+
+    public void updateUser(String password) {
+        this.password = password;
+    }
 }

@@ -1,7 +1,7 @@
 package com.blueprintto3d.jwt;
 
 
-import com.blueprintto3d.domain.dto.TokenDto;
+import com.blueprintto3d.domain.dto.token.TokenDto;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
