@@ -1,5 +1,6 @@
 package com.blueprintto3d.domain.entity;
 
+import com.blueprintto3d.domain.dto.user.UserJoinRequest;
 import com.blueprintto3d.domain.enum_class.UserRole;
 import lombok.*;
 
@@ -10,7 +11,7 @@ import javax.persistence.*;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class User {
+public class User extends BaseEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,19 +19,25 @@ public class User {
 
     private String email;
     private String password;
+    private String name;
 
-    private String image;
     private String provider;
     private String providerId;
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
-    public void changePassword(String newPassword) {
-        this.password = newPassword;
+    public static User of(UserJoinRequest userJoinRequest, String password) {
+        return User.builder()
+                .name(userJoinRequest.getName())
+                .email(userJoinRequest.getEmail())
+                .password(password)
+                .role(UserRole.ROLE_USER)
+                .build();
     }
 
-    public void updateUser(String password) {
+    public void changePassword(String password) {
         this.password = password;
     }
+
 }

@@ -4,10 +4,12 @@ import com.blueprintto3d.domain.entity.User;
 import com.blueprintto3d.domain.enum_class.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class UserLoginRequest {
 
