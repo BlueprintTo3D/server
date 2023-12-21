@@ -16,8 +16,13 @@ public class TestController {
         return "gltf";
     }
 
-    @GetMapping("/")
-    public String homePage() {
-        return "home";
+//    @GetMapping("/")
+//    public String homePage() {
+//        return "home";
+//    }
+
+    @GetMapping("/login")
+    public String userPage() {
+        return "login";
     }
 }
