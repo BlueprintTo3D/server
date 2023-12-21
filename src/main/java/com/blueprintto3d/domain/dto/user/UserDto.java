@@ -15,6 +15,7 @@ public class UserDto {
     private Long no;
     private String email;
     private String password;
+    private String name;
     private String role;
 
     public static UserDto of (User user) {
@@ -22,6 +23,7 @@ public class UserDto {
                 .no(user.getNo())
                 .email(user.getEmail())
                 .password(user.getPassword())
+                .name(user.getName())
                 .role(user.getRole().name())
                 .build();
     }

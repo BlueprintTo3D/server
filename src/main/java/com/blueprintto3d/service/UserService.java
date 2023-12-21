@@ -1,135 +1,122 @@
 package com.blueprintto3d.service;
 
-import com.blueprintto3d.domain.dto.token.TokenDto;
-import com.blueprintto3d.domain.dto.token.TokenRequestDto;
-import com.blueprintto3d.domain.dto.user.UserDto;
-import com.blueprintto3d.domain.dto.user.UserJoinRequest;
-import com.blueprintto3d.domain.dto.user.UserLoginRequest;
-import com.blueprintto3d.domain.entity.RefreshToken;
+import com.blueprintto3d.domain.dto.user.*;
 import com.blueprintto3d.domain.entity.User;
 import com.blueprintto3d.exception.AppException;
 import com.blueprintto3d.exception.ErrorCode;
 import com.blueprintto3d.jwt.TokenProvider;
 import com.blueprintto3d.repository.RefreshTokenRepository;
 import com.blueprintto3d.repository.UserRepository;
+import com.blueprintto3d.util.CookieUtil;
+import com.blueprintto3d.util.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder encoder;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final TokenProvider tokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RedisService redisService;
 
-    public UserDto join(UserJoinRequest userJoinRequest) {
-        if (userRepository.existsByEmail(userJoinRequest.getEmail())) {
+    private final long accessTokenExpireTimeMs = 1000 * 60 * 30L;
+    private final long refreshTokenExpireTimeMs = 1000 * 60 * 60 * 24L;
+
+    @Value("${jwt.token.secret}")
+    private String secretKey;
+
+    public UserJoinResponse join(UserJoinRequest userJoinRequest) {
+        //email 중복확인
+        userRepository.findByEmail(userJoinRequest.getEmail()).ifPresent(user -> {
             throw new AppException(ErrorCode.DUPLICATED_USER_EMAIL);
-        }
+        });
 
-        User user = userRepository.save(userJoinRequest.toEntity(encoder.encode(userJoinRequest.getPassword())));
-        return UserDto.of(user);
+        //UserJoinRequest -> User
+        User user = User.of(userJoinRequest, encoder.encode(userJoinRequest.getPassword()));
+
+        //User 저장
+        user = userRepository.save(user);
+        //User -> UserJoinResponse 변환 후 반환
+        return UserJoinResponse.of(user.getNo(), user.getName());
     }
 
-    public TokenDto login(UserLoginRequest userLoginRequest) {
+    public UserLoginResponse login(UserLoginRequest userLoginRequest, HttpServletResponse response) {
 
-        log.info("🏠UserService login 시작");
-
-        User user = userRepository.findByEmail(userLoginRequest.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUNDED));
-
-        if (!encoder.matches(userLoginRequest.getPassword(), user.getPassword())) {
+        //이메일 체크
+        User findUser = userRepository.findByEmail(userLoginRequest.getEmail()).orElseThrow(() -> {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        });
+        //비밀번호 체크
+        if (!encoder.matches(userLoginRequest.getPassword(), findUser.getPassword())) {
             throw new AppException(ErrorCode.INVALID_PASSWORD);
         }
 
-        // 1. Login ID/PW 를 기반으로 AuthenticationToken 생성
-        UsernamePasswordAuthenticationToken authenticationToken = userLoginRequest.authenticationToken();
+        //토큰 발행
+        String accessToken = JwtTokenUtil.createToken(findUser.getNo(), secretKey, accessTokenExpireTimeMs);
+        String refreshToken = JwtTokenUtil.createToken(findUser.getNo(), secretKey, refreshTokenExpireTimeMs);
 
-        // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
-        //    authenticate 메서드가 실행이 될 때 CustomUserDetailsService 에서 만들었던 loadUserByUsername 메서드가 실행됨
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        //레디스 저장
+        redisService.setDataExpire(accessToken, refreshToken, refreshTokenExpireTimeMs / 1000);
 
-        // 3. 인증 정보를 기반으로 JWT 토큰 생성
-        TokenDto tokenDto = tokenProvider.generateTokenDto(authentication);
+        //쿠키 저장
+        CookieUtil.saveCookie(response, "token", accessToken);
 
-        RefreshToken refreshToken = RefreshToken.builder()
-                .key(authentication.getName())
-                .value(tokenDto.getRefreshToken())
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
-
-        // 5. 토큰 발급
-        return tokenDto;
+        return UserLoginResponse.of(accessToken);
     }
 
-    @Transactional
-    public TokenDto reissue(TokenRequestDto tokenRequestDto) {
+    /**
+     * 로그아웃 메서드
+     *
+     * @param response 쿠키를 설정하기 위해 매개변수로 받은 response
+     * @return 로그아웃 성공 여부 메세지를 반환한다.
+     */
+    public UserLogoutResponse logout(HttpServletRequest request, HttpServletResponse response) {
+        //redis aceess token logout
+        String accessToken = CookieUtil.getCookieValue(request, "token");
+        redisService.deleteData(accessToken);
+        redisService.setDataExpire(accessToken, "LOGOUT", accessTokenExpireTimeMs / 1000);
+        //쿠키 초기화
+        CookieUtil.initCookie(response, "token");
+        return new UserLogoutResponse("로그아웃되었습니다.");
+    }
 
-        // 1. RefreshToken 검증
-        if (!tokenProvider.validateToken(tokenRequestDto.getRefreshToken())) {
-            throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
+    public boolean isReissueable(HttpServletRequest request, HttpServletResponse response) {
+        log.info("토큰 재발급 시도");
+        //accessToken 가져옴
+        String accessToken = CookieUtil.getCookieValue(request, "token");
+        //redis에서 refreshToken 가져오기 및 refresh 유효성 체크
+        String refreshToken = redisService.getData(accessToken);
+        if (refreshToken == null) {
+            log.error("refresh 토큰이 없습니다.");
+            return false;
         }
-
-        // 2. AccessToken에서 Id 가져오기
-        Authentication authentication = tokenProvider.getAuthentication(tokenRequestDto.getAccessToken());
-
-        // 3. 저장소에서 id를 기반으로 RefreshToken 값 가져오기
-        RefreshToken refreshToken = refreshTokenRepository.findByKey(authentication.getName())
-                .orElseThrow(() -> new AppException(ErrorCode.LOGOUT_USER));
-
-        // 4. RefreshToken이 일치 하는지 검사
-        if (!refreshToken.getValue().equals(tokenRequestDto.getRefreshToken())) {
-            throw new AppException(ErrorCode.TOKEN_NOT_MATCH);
+        if (!JwtTokenUtil.isValid(refreshToken, secretKey).equals("OK")){
+            log.error("refresh 토큰이 유효하지 않습니다.");
+            return false;
         }
-
-        // 5. 새로운 토큰 생성
-        TokenDto tokenDto = tokenProvider.generateTokenDto(authentication);
-
-        // 6. 정보 업데이트
-        RefreshToken newRefreshToken = refreshToken.updateValue(tokenDto.getRefreshToken());
-        refreshTokenRepository.save(newRefreshToken);
-
-        return tokenDto;
+        Long userNo = JwtTokenUtil.getUserNo(refreshToken, secretKey);
+        //redis에서 기존 refresh 데이터 삭제
+        redisService.deleteData(accessToken);
+        //토큰 재발행 및 redis에 저장
+        String newAccessToken = JwtTokenUtil.createToken(userNo, secretKey, accessTokenExpireTimeMs);
+        String newRefreshToken = JwtTokenUtil.createToken(userNo, secretKey, refreshTokenExpireTimeMs);
+        redisService.setDataExpire(newAccessToken, newRefreshToken, refreshTokenExpireTimeMs / 1000);
+        //accessToken 쿠키에 저장
+        if (request.getRequestURL().toString().contains("api"))
+            CookieUtil.saveCookie(response, "token", newAccessToken);
+        else CookieUtil.savePathCookie(response, "token", newAccessToken, "/");
+        log.info(request.getRequestURL().toString());
+        log.info("토큰 재발급 성공");
+        return true;
     }
-
-    // 정보 변경
-    @Transactional
-    public void editUserInfo(String password, String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUNDED));
-
-        String changedPassword = user.getPassword();
-
-        if (!password.equals("")) {
-            changedPassword = encoder.encode(password);
-        }
-
-        user.updateUser(changedPassword);
-        userRepository.save(user);
-    }
-
-
-    // 비밀번호 변경
-    public void changePassword (String email, String newPassword) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUNDED));
-
-        String encodedPassword = encoder.encode(newPassword);
-        user.changePassword(encodedPassword);
-        userRepository.save(user);
-    }
-
-
-
 }

@@ -25,10 +25,16 @@ public class UserJoinRequest {
     @Pattern(regexp="[a-zA-Z1-9]{6,12}", message = "비밀번호는 영어와 숫자로 포함해서 6~12자리 이내로 입력해주세요.")
     private String password;
 
+    @NotBlank(message = "이름을 입력해주세요.")
+    private String name;
+
+    private String code;
+
     public User toEntity(String encodedPassword) {
         return User.builder()
                 .email(this.email)
                 .password(encodedPassword)
+                .name(this.name)
                 .role(UserRole.ROLE_USER)
                 .build();
     }
