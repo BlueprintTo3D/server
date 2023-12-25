@@ -13,12 +13,13 @@ public class ExceptionManager {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<?> AppExceptionHandler (AppException e) {
         return ResponseEntity.status(e.getErrorCode().getStatus())
-                .body(Response.error(new ErrorResponse(e.getErrorCode().name(), e.toString())));
+                .body(Response.error(new ErrorResponse(e.getErrorCode().name(), e.getErrorCode().getMessage())));
     }
 
     @ExceptionHandler(SQLException.class)
     public ResponseEntity<?> sqlExceptionHandler(SQLException e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Response.error(new ErrorResponse(ErrorCode.DATABASE_ERROR.name(), toString())));
+                .body(Response.error(new ErrorResponse(ErrorCode.DATABASE_ERROR.name(), e.getMessage())));
     }
 }
+
